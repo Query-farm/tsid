@@ -4,7 +4,7 @@
 
 # Before we load the extension, this will fail
 statement error
-SELECT tsid('Sam');
+SELECT tsid();
 ----
 Catalog Error: Scalar Function with name tsid does not exist!
 
@@ -14,19 +14,19 @@ require tsid
 # Test TSID generation
 # Verify it generates a valid hex string of correct length (32 chars)
 query I
-SELECT length(tsid('any')) = 32;
+SELECT length(tsid()) = 32;
 ----
 true
 
 # Verify hex format (all characters are valid hex)
 query I
-SELECT tsid('any') ~ '^[0-9a-f]{32}$';
+SELECT tsid() ~ '^[0-9a-f]{32}$';
 ----
 true
 
 # Test timestamp extraction
 query I
-SELECT tsid_to_timestamp(tsid('any')) IS NOT NULL;
+SELECT tsid_to_timestamp(tsid()) IS NOT NULL;
 ----
 true
 
@@ -38,13 +38,13 @@ Invalid TSID format
 
 # Verify timestamp is recent
 query I
-SELECT tsid_to_timestamp(tsid('any')) >= '2024-01-01';
+SELECT tsid_to_timestamp(tsid()) >= '2024-01-01';
 ----
 true
 
 # Test basic bulk operation
 query I
 SELECT COUNT(*)
-FROM (SELECT tsid('any') FROM range(10)) t;
+FROM (SELECT tsid() FROM range(10)) t;
 ----
 10
