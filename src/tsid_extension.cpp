@@ -8,6 +8,7 @@
 #include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
 #include "duckdb/common/exception/conversion_exception.hpp"
 #include "uutid.hpp"
+#include "query_farm_telemetry.hpp"
 
 namespace duckdb {
 
