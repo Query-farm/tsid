@@ -90,7 +90,7 @@ namespace duckdb
 
         loader.RegisterFunction(std::move(tsid_to_ts_info));
 
-        QueryFarmSendTelemetry(loader, "tsid", "2025120401");
+        QueryFarmSendTelemetry(loader, "tsid", "2026072501");
     }
 
     void TsidExtension::Load(ExtensionLoader &loader)
