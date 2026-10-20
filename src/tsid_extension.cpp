@@ -7,6 +7,8 @@
 #include "duckdb/main/extension/extension_loader.hpp"
 #include "duckdb/parser/parsed_data/create_scalar_function_info.hpp"
 #include "duckdb/common/exception/conversion_exception.hpp"
+#include "duckdb/common/vector/flat_vector.hpp"
+#include "duckdb/common/vector/string_vector.hpp"
 #include "uutid.hpp"
 #include "query_farm_telemetry.hpp"
 
@@ -16,8 +18,8 @@ namespace duckdb
     // Generate new TSID
     static void TsidScalarFun(DataChunk &args, ExpressionState &state, Vector &result)
     {
-        auto result_data = FlatVector::GetData<string_t>(result);
-        auto &validity = FlatVector::Validity(result);
+        auto result_data = FlatVector::GetDataMutable<string_t>(result);
+        auto &validity = FlatVector::ValidityMutable(result);
 
         for (idx_t i = 0; i < args.size(); i++)
         {
@@ -31,7 +33,7 @@ namespace duckdb
     static void TsidToTimestampScalarFun(DataChunk &args, ExpressionState &state, Vector &result)
     {
         UnaryExecutor::Execute<string_t, timestamp_t>(
-            args.data[0], result, args.size(),
+            args.data[0], result,
             [&](string_t input)
             {
                 try
@@ -54,7 +56,7 @@ namespace duckdb
     {
         // Register tsid() function
         ScalarFunction tsid_fun({}, LogicalType::VARCHAR, TsidScalarFun);
-        tsid_fun.stability = FunctionStability::VOLATILE;
+        tsid_fun.SetVolatile();
 
         ScalarFunctionSet tsid_set("tsid");
         tsid_set.AddFunction(tsid_fun);
@@ -74,6 +76,7 @@ namespace duckdb
         // Register tsid_to_timestamp() function
         ScalarFunction tsid_to_ts_fun("tsid_to_timestamp", {LogicalType::VARCHAR}, LogicalType::TIMESTAMP,
                                       TsidToTimestampScalarFun);
+        tsid_to_ts_fun.SetFallible();
 
         ScalarFunctionSet tsid_to_ts_set("tsid_to_timestamp");
         tsid_to_ts_set.AddFunction(tsid_to_ts_fun);
