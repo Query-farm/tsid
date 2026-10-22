@@ -74,7 +74,10 @@ namespace duckdb
         loader.RegisterFunction(std::move(tsid_info));
 
         // Register tsid_to_timestamp() function
-        ScalarFunction tsid_to_ts_fun("tsid_to_timestamp", {LogicalType::VARCHAR}, LogicalType::TIMESTAMP,
+        ScalarFunction tsid_to_ts_fun("tsid_to_timestamp",
+                                      {FunctionParameter("tsid", LogicalType::VARCHAR, {},
+                                                         FunctionParameterKind::POSITIONAL_ONLY)},
+                                      LogicalType::TIMESTAMP,
                                       TsidToTimestampScalarFun);
         tsid_to_ts_fun.SetFallible();
 
@@ -93,7 +96,7 @@ namespace duckdb
 
         loader.RegisterFunction(std::move(tsid_to_ts_info));
 
-        QueryFarmSendTelemetry(loader, "tsid", "2026102001");
+        QueryFarmSendTelemetry(loader, "tsid", "2026102101");
     }
 
     void TsidExtension::Load(ExtensionLoader &loader)
