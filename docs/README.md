@@ -7,37 +7,17 @@
   </a>
 </p>
 
-# DuckDB TSID Community Extension
+# TSID Extension for DuckDB
 
-[![DuckDB](https://img.shields.io/badge/DuckDB-community_extension-fdf1e0?logo=duckdb&logoColor=fff000)](https://duckdb.org/community_extensions/extensions/tsid.html)
-[![v1.5 build](https://github.com/Query-farm/tsid/actions/workflows/MainDistributionPipeline.yml/badge.svg?branch=v1.5)](https://github.com/Query-farm/tsid/actions/workflows/MainDistributionPipeline.yml?query=branch%3Av1.5)
+[![DuckDB](https://img.shields.io/badge/DuckDB-extension-fdf1e0?logo=duckdb&logoColor=fff000)](https://query.farm/products/extensions/tsid/)
+[![v2.0 build](https://github.com/Query-farm/tsid/actions/workflows/MainDistributionPipeline.yml/badge.svg?branch=v2.0)](https://github.com/Query-farm/tsid/actions/workflows/MainDistributionPipeline.yml?query=branch%3Av2.0)
 
-This extension adds support for Time-Sorted Unique Identifiers (TSID).
-
-> Experimental: USE AT YOUR OWN RISK!
+Generate Time-Sorted Unique Identifiers (TSIDs) in DuckDB. Experimental.
 
 ## Documentation
 
 Full documentation, including installation, usage, the function reference, and cookbook examples, is available at:
 
-**[https://query.farm/products/extensions/tsid](https://query.farm/products/extensions/tsid)**
+**[https://query.farm/products/extensions/tsid/](https://query.farm/products/extensions/tsid/)**
 
-## Installation
-
-```sql
-INSTALL tsid FROM community;
-LOAD tsid;
-```
-
-## Generation and ordering
-
-`tsid()` takes no arguments; there is no seed overload. Use `ORDER BY` when the
-query output must be sorted:
-
-```sql
-SELECT tsid() AS id FROM range(100) ORDER BY id;
-```
-
-The timestamp prefix supports time-based sorting, but IDs do not establish a
-strict insertion or commit order across concurrent producers or clock changes.
-Store an explicit sequence or application timestamp when that order is required.
+[Repository notes](REPOSITORY_NOTES.md)
