@@ -1,0 +1,145 @@
+# name: test/sql/tsid_decode.test
+# description: tsid_to_timestamp known values, accepted forms, and malformed input (must error, never crash)
+# group: [tsid]
+
+require tsid
+
+# Known value: seconds = 0x65d4a2b6, nanos = 0
+query I
+SELECT tsid_to_timestamp('65d4a2b6000000004000800000000000');
+----
+2024-02-20 13:01:42
+
+# Dashed canonical form and upper case decode to the same value
+query I
+SELECT tsid_to_timestamp('65d4a2b6-0000-0000-4000-800000000000');
+----
+2024-02-20 13:01:42
+
+query I
+SELECT tsid_to_timestamp('65D4A2B6000000004000800000000000');
+----
+2024-02-20 13:01:42
+
+# Epoch
+query I
+SELECT tsid_to_timestamp('00000000000000004000800000000000');
+----
+1970-01-01 00:00:00
+
+# Sub-second part: 123456 us = 123456000 ns -> (ns << 2) split across bytes 4-7 with version nibble
+query I
+SELECT tsid_to_timestamp(tsid(TIMESTAMP '2024-06-01 12:00:00.123456'));
+----
+2024-06-01 12:00:00.123456
+
+# Native UUID overload
+query I
+SELECT tsid_to_timestamp('65d4a2b6-0000-0000-4000-800000000000'::UUID);
+----
+2024-02-20 13:01:42
+
+# NULL in, NULL out
+query I
+SELECT tsid_to_timestamp(NULL::VARCHAR);
+----
+NULL
+
+query I
+SELECT tsid_to_timestamp(NULL::UUID);
+----
+NULL
+
+query I
+SELECT tsid_to_timestamp(NULL);
+----
+NULL
+
+# Table column with NULLs mixed in (non-constant vector)
+query II
+SELECT i, tsid_to_timestamp(s) FROM (VALUES
+  (1, '65d4a2b6000000004000800000000000'),
+  (2, NULL),
+  (3, '00000000-0000-0000-4000-800000000000')) t(i, s)
+ORDER BY i;
+----
+1	2024-02-20 13:01:42
+2	NULL
+3	1970-01-01 00:00:00
+
+# Malformed: 36 characters but not dashed at 8-4-4-4-12 (used to overflow a 16-byte buffer and abort)
+statement error
+SELECT tsid_to_timestamp('0123456789abcdef0123456789abcdef0123');
+----
+Invalid TSID format
+
+# Malformed: all dashes (used to return 1970-01-01)
+statement error
+SELECT tsid_to_timestamp('------------------------------------');
+----
+Invalid TSID format
+
+# Dashes in the wrong positions
+statement error
+SELECT tsid_to_timestamp('65d4a2b60-000-0000-4000-800000000000');
+----
+Invalid TSID format
+
+# Wrong lengths
+statement error
+SELECT tsid_to_timestamp('');
+----
+Invalid TSID format
+
+statement error
+SELECT tsid_to_timestamp('65d4a2b600000000400080000000000');
+----
+Invalid TSID format
+
+statement error
+SELECT tsid_to_timestamp('65d4a2b60000000040008000000000000');
+----
+Invalid TSID format
+
+statement error
+SELECT tsid_to_timestamp('65d4a2b6-0000-0000-4000-8000000000000');
+----
+Invalid TSID format
+
+statement error
+SELECT tsid_to_timestamp('not_a_valid_tsid');
+----
+Invalid TSID format
+
+# Non-hex characters, including a non-ASCII (negative char) byte
+statement error
+SELECT tsid_to_timestamp('65d4a2b600000000400080000000000g');
+----
+Invalid TSID format
+
+statement error
+SELECT tsid_to_timestamp('65d4a2b60000000040008000000000é');
+----
+Invalid TSID format
+
+statement error
+SELECT tsid_to_timestamp('65d4a2b6 0000 0000 4000 800000000000');
+----
+Invalid TSID format
+
+statement error
+SELECT tsid_to_timestamp('0x5d4a2b6000000004000800000000000');
+----
+Invalid TSID format
+
+# Malformed value inside a table column also errors
+statement error
+SELECT tsid_to_timestamp(s) FROM (VALUES ('65d4a2b6000000004000800000000000'), ('bogus')) t(s);
+----
+Invalid TSID format
+
+# TRY() turns the error into NULL
+query I
+SELECT TRY(tsid_to_timestamp('bogus'));
+----
+NULL

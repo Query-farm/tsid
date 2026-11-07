@@ -5,8 +5,10 @@ For installation and the full user documentation, see the
 
 ## Generation and ordering
 
-`tsid()` takes no arguments; there is no seed overload. Use `ORDER BY` when the
-query output must be sorted:
+`tsid()` / `tsid_uuid()` embed the current time; `tsid(ts)` / `tsid_uuid(ts)`
+embed a given timestamp (1970-01-01 .. 2106-02-07). There is no seed overload:
+the random tail comes from a per-thread engine seeded from `std::random_device`.
+Use `ORDER BY` when the query output must be sorted:
 
 ```sql
 SELECT tsid() AS id FROM range(100) ORDER BY id;

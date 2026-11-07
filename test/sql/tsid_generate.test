@@ -1,0 +1,123 @@
+# name: test/sql/tsid_generate.test
+# description: tsid()/tsid_uuid() generation: format, uniqueness, ordering, timestamp overloads
+# group: [tsid]
+
+require tsid
+
+query I
+SELECT tsid() ~ '^[0-9a-f]{12}4[0-9a-f]{3}[89ab][0-9a-f]{15}$';
+----
+true
+
+query I
+SELECT typeof(tsid_uuid());
+----
+UUID
+
+query I
+SELECT tsid_uuid()::VARCHAR ~ '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$';
+----
+true
+
+# Embedded time is "now"
+query I
+SELECT abs(epoch(tsid_to_timestamp(tsid())) - epoch(now()::TIMESTAMP)) < 300;
+----
+true
+
+query I
+SELECT abs(epoch(tsid_to_timestamp(tsid_uuid())) - epoch(now()::TIMESTAMP)) < 300;
+----
+true
+
+# Volatile: a fresh value per row
+query I
+SELECT count(DISTINCT id) FROM (SELECT tsid() AS id FROM range(1000000));
+----
+1000000
+
+query I
+SELECT count(DISTINCT id) FROM (SELECT tsid_uuid() AS id FROM range(1000000));
+----
+1000000
+
+# Uniqueness across parallel threads
+statement ok
+SET threads = 8;
+
+statement ok
+CREATE TABLE ids AS SELECT tsid() AS id, tsid_uuid() AS uid FROM range(2000000);
+
+query II
+SELECT count(DISTINCT id), count(DISTINCT uid) FROM ids;
+----
+2000000	2000000
+
+# Same timestamp still yields distinct ids (random tail)
+query I
+SELECT count(DISTINCT tsid(TIMESTAMP '2024-01-01')) FROM range(100000);
+----
+100000
+
+# Ordering follows the embedded time, for both the string and the UUID form
+query I
+SELECT bool_and(a < b) FROM (
+  SELECT tsid(ts) AS a, tsid(ts + INTERVAL 1 microsecond) AS b
+  FROM (SELECT TIMESTAMP '2001-01-01' + i * INTERVAL 7919 second + (i % 999983) * INTERVAL 1 microsecond AS ts
+        FROM range(10000) r(i)));
+----
+true
+
+query I
+SELECT bool_and(a < b) FROM (
+  SELECT tsid_uuid(ts) AS a, tsid_uuid(ts + INTERVAL 1 microsecond) AS b
+  FROM (SELECT TIMESTAMP '2001-01-01' + i * INTERVAL 7919 second + (i % 999983) * INTERVAL 1 microsecond AS ts
+        FROM range(10000) r(i)));
+----
+true
+
+# Round trip through both overloads, from a non-constant column
+query I
+SELECT count(*) FROM (
+  SELECT TIMESTAMP '1970-01-01' + i * INTERVAL 13 day + (i * 7) * INTERVAL 1 microsecond AS ts FROM range(3000) r(i))
+WHERE tsid_to_timestamp(tsid(ts)) <> ts OR tsid_to_timestamp(tsid_uuid(ts)) <> ts
+   OR tsid_to_timestamp(tsid_uuid(ts)::VARCHAR) <> ts;
+----
+0
+
+# String and UUID forms carry the same bytes
+query I
+SELECT tsid_to_timestamp(replace(tsid_uuid(TIMESTAMP '2030-05-05 05:05:05')::VARCHAR, '-', ''));
+----
+2030-05-05 05:05:05
+
+# Range limits
+query I
+SELECT tsid_to_timestamp(tsid(TIMESTAMP '1970-01-01 00:00:00'));
+----
+1970-01-01 00:00:00
+
+query I
+SELECT tsid_to_timestamp(tsid(TIMESTAMP '2106-02-07 06:28:15.999999'));
+----
+2106-02-07 06:28:15.999999
+
+statement error
+SELECT tsid(TIMESTAMP '1969-12-31 23:59:59.999999');
+----
+outside the encodable range
+
+statement error
+SELECT tsid_uuid(TIMESTAMP '2106-02-07 06:28:16');
+----
+outside the encodable range
+
+statement error
+SELECT tsid('infinity'::TIMESTAMP);
+----
+infinite timestamp
+
+query I
+SELECT tsid(NULL::TIMESTAMP) IS NULL AND tsid_uuid(NULL::TIMESTAMP) IS NULL;
+----
+true

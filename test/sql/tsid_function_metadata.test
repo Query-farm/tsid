@@ -1,0 +1,38 @@
+# name: test/sql/tsid_function_metadata.test
+# description: every tsid function reports a description, examples, categories and real parameter names
+# group: [tsid]
+
+require tsid
+
+query I
+SELECT count(*) FROM duckdb_functions()
+WHERE function_name LIKE 'tsid%'
+  AND (description IS NULL OR description = '' OR examples IS NULL OR len(examples) = 0
+       OR categories IS NULL OR NOT list_contains(categories, 'uuid')
+       OR list_any_value(list_filter(parameters, lambda p: p LIKE 'col%')) IS NOT NULL);
+----
+0
+
+query TTTT
+SELECT function_name, parameters, parameter_types, return_type FROM duckdb_functions()
+WHERE function_name LIKE 'tsid%'
+ORDER BY function_name, len(parameters), parameter_types::VARCHAR;
+----
+tsid	[]	[]	VARCHAR
+tsid	[ts]	[TIMESTAMP]	VARCHAR
+tsid_to_timestamp	[tsid]	[UUID]	TIMESTAMP
+tsid_to_timestamp	[tsid]	[VARCHAR]	TIMESTAMP
+tsid_uuid	[]	[]	UUID
+tsid_uuid	[ts]	[TIMESTAMP]	UUID
+
+query TT
+SELECT function_name, stability FROM duckdb_functions()
+WHERE function_name LIKE 'tsid%'
+ORDER BY function_name, len(parameters), parameter_types::VARCHAR;
+----
+tsid	VOLATILE
+tsid	VOLATILE
+tsid_to_timestamp	CONSISTENT
+tsid_to_timestamp	CONSISTENT
+tsid_uuid	VOLATILE
+tsid_uuid	VOLATILE
